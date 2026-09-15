@@ -55,3 +55,18 @@ account1.deposit(111)
 print("1:", account1)
 account1.bal = 888
 print("2:", account1)
+
+print("="*50)
+
+def add_many(*args):
+    result = 0
+    for i in args:
+        result += i
+    return result
+
+print(add_many(1,2,7,80))
+
+print("="*50)
+
+a=input()
+print(a)
