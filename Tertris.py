@@ -1,133 +1,63 @@
 import random
-import tkinter as tk
+import sys
+
+import pygame
 
 
 CELL_SIZE = 30
 BOARD_WIDTH = 10
 BOARD_HEIGHT = 20
-DROP_DELAY = 500
+BOARD_X = 24
+BOARD_Y = 24
+SIDE_WIDTH = 210
+WINDOW_WIDTH = BOARD_X * 2 + BOARD_WIDTH * CELL_SIZE + SIDE_WIDTH
+WINDOW_HEIGHT = BOARD_Y * 2 + BOARD_HEIGHT * CELL_SIZE
+
+DIFFICULTIES = {
+    "1": {"name": "Easy", "drop_delay": 700, "multiplier": 1},
+    "2": {"name": "Normal", "drop_delay": 450, "multiplier": 2},
+    "3": {"name": "Hard", "drop_delay": 250, "multiplier": 3},
+}
 
 COLORS = {
-    "I": "#35c9e8",
-    "J": "#4169e1",
-    "L": "#f39c35",
-    "O": "#f1d34b",
-    "S": "#55c878",
-    "T": "#a66cff",
-    "Z": "#ef5b67",
+    "I": (40, 195, 225),
+    "J": (65, 105, 225),
+    "L": (245, 145, 45),
+    "O": (240, 205, 55),
+    "S": (75, 195, 115),
+    "T": (165, 105, 235),
+    "Z": (235, 80, 95),
 }
 
 SHAPES = {
-    "I": [
-        ["....", "IIII", "....", "...."],
-        ["..I.", "..I.", "..I.", "..I."],
-    ],
-    "J": [
-        ["J..", "JJJ", "..."],
-        [".JJ", ".J.", ".J."],
-        ["...", "JJJ", "..J"],
-        [".J.", "J..", "J.."],
-    ],
-    "L": [
-        ["..L", "LLL", "..."],
-        ["L..", ".L.", ".L."],
-        ["...", "LLL", "L.."],
-        [".L.", ".L.", ".LL"],
-    ],
+    "I": [["....", "IIII", "....", "...."], ["..I.", "..I.", "..I.", "..I."]],
+    "J": [["J..", "JJJ", "..."], [".JJ", ".J.", ".J."], ["...", "JJJ", "..J"], [".J.", "J..", "J.."]],
+    "L": [["..L", "LLL", "..."], ["L..", ".L.", ".L."], ["...", "LLL", "L.."], [".L.", ".L.", ".LL"]],
     "O": [["OO", "OO"]],
-    "S": [
-        [".SS", "SS.", "..."],
-        ["S..", "SS.", ".S."],
-    ],
-    "T": [
-        [".T.", "TTT", "..."],
-        [".T.", ".TT", ".T."],
-        ["...", "TTT", ".T."],
-        [".T.", "TT.", ".T."],
-    ],
-    "Z": [
-        ["ZZ.", ".ZZ", "..."],
-        [".Z.", "ZZ.", "Z.."],
-    ],
+    "S": [[".SS", "SS.", "..."], ["S..", "SS.", ".S."]],
+    "T": [[".T.", "TTT", "..."], [".T.", ".TT", ".T."], ["...", "TTT", ".T."], [".T.", "TT.", ".T."]],
+    "Z": [["ZZ.", ".ZZ", "..."], [".Z.", "ZZ.", "Z.."]],
 }
 
 
 class TetrisGame:
-    def __init__(self, root):
-        self.root = root
-        self.root.title("Tetris")
-        self.root.resizable(False, False)
-        self.root.configure(bg="#202124")
-        self.running = False
-        self.paused = False
-        self.after_id = None
-
-        self.canvas = tk.Canvas(
-            root,
-            width=BOARD_WIDTH * CELL_SIZE,
-            height=BOARD_HEIGHT * CELL_SIZE,
-            bg="#111315",
-            highlightthickness=0,
-        )
-        self.canvas.grid(row=0, column=0, rowspan=2, padx=(12, 8), pady=12)
-
-        side = tk.Frame(root, bg="#202124", width=150)
-        side.grid(row=0, column=1, sticky="n", padx=(8, 12), pady=12)
-        side.grid_propagate(False)
-
-        tk.Label(
-            side, text="TETRIS", font=("Segoe UI", 18, "bold"),
-            fg="#ffffff", bg="#202124"
-        ).pack(anchor="w")
-        self.score_label = tk.Label(
-            side, text="Score: 0", font=("Segoe UI", 12),
-            fg="#f1f3f4", bg="#202124"
-        )
-        self.score_label.pack(anchor="w", pady=(12, 8))
-        tk.Label(
-            side, text="NEXT", font=("Segoe UI", 9, "bold"),
-            fg="#9aa0a6", bg="#202124"
-        ).pack(anchor="w")
-        self.next_canvas = tk.Canvas(
-            side, width=120, height=100, bg="#111315", highlightthickness=0
-        )
-        self.next_canvas.pack(pady=(4, 16))
-        self.status_label = tk.Label(
-            side, text="Press Enter to start", font=("Segoe UI", 10),
-            fg="#9aa0a6", bg="#202124", wraplength=140, justify="left"
-        )
-        self.status_label.pack(anchor="w", pady=(0, 12))
-        tk.Label(
-            side, text="Arrows: move / rotate\nSpace: hard drop\nP: pause\nR: restart",
-            font=("Segoe UI", 9), fg="#9aa0a6", bg="#202124", justify="left"
-        ).pack(anchor="w")
-
-        self.root.bind("<Key>", self.handle_key)
-        self.reset()
-
-    def reset(self):
-        if self.after_id is not None:
-            self.root.after_cancel(self.after_id)
-            self.after_id = None
-        self.board = [[None for _ in range(BOARD_WIDTH)] for _ in range(BOARD_HEIGHT)]
+    def __init__(self, difficulty_key):
+        self.difficulty = DIFFICULTIES[difficulty_key]
+        self.board = [[None] * BOARD_WIDTH for _ in range(BOARD_HEIGHT)]
         self.score = 0
+        self.lines = 0
+        self.running = True
+        self.paused = False
         self.current_type = None
         self.current_rotation = 0
         self.current_x = 0
         self.current_y = 0
         self.next_type = random.choice(list(SHAPES))
-        self.running = False
-        self.paused = False
-        self.score_label.config(text="Score: 0")
-        self.status_label.config(text="Press Enter to start")
-        self.draw()
-
-    def start(self):
-        self.reset()
-        self.running = True
         self.spawn_piece()
-        self.status_label.config(text="Playing")
-        self.tick()
+
+    def get_shape(self, rotation=None):
+        rotation = self.current_rotation if rotation is None else rotation
+        return SHAPES[self.current_type][rotation % len(SHAPES[self.current_type])]
 
     def spawn_piece(self):
         self.current_type = self.next_type
@@ -137,15 +67,11 @@ class TetrisGame:
         self.current_x = (BOARD_WIDTH - len(shape[0])) // 2
         self.current_y = 0
         if not self.is_valid(self.current_x, self.current_y, self.current_rotation):
-            self.game_over()
-
-    def get_shape(self, piece_type=None, rotation=None):
-        piece_type = piece_type or self.current_type
-        rotation = self.current_rotation if rotation is None else rotation
-        return SHAPES[piece_type][rotation % len(SHAPES[piece_type])]
+            self.running = False
 
     def is_valid(self, x, y, rotation):
-        for row_index, row in enumerate(self.get_shape(rotation=rotation)):
+        shape = SHAPES[self.current_type][rotation % len(SHAPES[self.current_type])]
+        for row_index, row in enumerate(shape):
             for column_index, cell in enumerate(row):
                 if cell == ".":
                     continue
@@ -158,29 +84,21 @@ class TetrisGame:
         return True
 
     def move(self, dx, dy):
-        if not self.running or self.paused:
-            return False
         if self.is_valid(self.current_x + dx, self.current_y + dy, self.current_rotation):
             self.current_x += dx
             self.current_y += dy
-            self.draw()
             return True
         return False
 
     def rotate(self):
-        if not self.running or self.paused:
-            return
         new_rotation = self.current_rotation + 1
         for offset in (0, -1, 1, -2, 2):
             if self.is_valid(self.current_x + offset, self.current_y, new_rotation):
                 self.current_x += offset
                 self.current_rotation = new_rotation
-                self.draw()
                 return
 
     def hard_drop(self):
-        if not self.running or self.paused:
-            return
         while self.move(0, 1):
             pass
         self.lock_piece()
@@ -192,92 +110,139 @@ class TetrisGame:
                     self.board[self.current_y + row_index][self.current_x + column_index] = self.current_type
         self.clear_lines()
         self.spawn_piece()
-        self.draw()
 
     def clear_lines(self):
         remaining = [row for row in self.board if any(cell is None for cell in row)]
         cleared = BOARD_HEIGHT - len(remaining)
         self.board = [[None] * BOARD_WIDTH for _ in range(cleared)] + remaining
         if cleared:
-            self.score += [0, 100, 300, 500, 800][cleared]
-            self.score_label.config(text=f"Score: {self.score}")
+            self.lines += cleared
+            self.score += [0, 100, 300, 500, 800][cleared] * self.difficulty["multiplier"]
 
-    def tick(self):
-        if not self.running:
-            return
-        if not self.paused:
-            if not self.move(0, 1):
-                self.lock_piece()
-            self.after_id = self.root.after(DROP_DELAY, self.tick)
 
-    def toggle_pause(self):
-        if not self.running:
-            return
-        self.paused = not self.paused
-        self.status_label.config(text="Paused" if self.paused else "Playing")
-        self.draw()
+def draw_text(screen, font, text, position, color=(235, 238, 240), center=False):
+    surface = font.render(text, True, color)
+    rect = surface.get_rect()
+    if center:
+        rect.center = position
+    else:
+        rect.topleft = position
+    screen.blit(surface, rect)
 
-    def game_over(self):
-        self.running = False
-        self.status_label.config(text="Game over\nPress R to restart")
-        self.draw()
 
-    def draw_cell(self, canvas, x, y, color, size=CELL_SIZE, origin=(0, 0)):
-        origin_x, origin_y = origin
-        left = origin_x + x * size
-        top = origin_y + y * size
-        canvas.create_rectangle(left + 1, top + 1, left + size - 1, top + size - 1, fill=color, outline="#202124")
+def draw_cell(screen, x, y, color, size=CELL_SIZE, origin=(BOARD_X, BOARD_Y)):
+    left = origin[0] + x * size
+    top = origin[1] + y * size
+    pygame.draw.rect(screen, color, (left + 1, top + 1, size - 2, size - 2), border_radius=3)
+    highlight = tuple(min(255, value + 35) for value in color)
+    pygame.draw.line(screen, highlight, (left + 3, top + 3), (left + size - 4, top + 3), 2)
 
-    def draw(self):
-        self.canvas.delete("all")
-        for y, row in enumerate(self.board):
-            for x, cell in enumerate(row):
-                if cell:
-                    self.draw_cell(self.canvas, x, y, COLORS[cell])
-        if self.current_type and self.running:
-            for row_index, row in enumerate(self.get_shape()):
-                for column_index, cell in enumerate(row):
-                    if cell != ".":
-                        self.draw_cell(
-                            self.canvas,
-                            self.current_x + column_index,
-                            self.current_y + row_index,
-                            COLORS[self.current_type],
-                        )
-        self.next_canvas.delete("all")
-        shape = SHAPES[self.next_type][0]
-        offset_x = (4 - len(shape[0])) * 15
-        offset_y = (4 - len(shape)) * 12
-        for y, row in enumerate(shape):
-            for x, cell in enumerate(row):
+
+def draw_game(screen, fonts, game):
+    screen.fill((22, 25, 29))
+    board_rect = pygame.Rect(BOARD_X, BOARD_Y, BOARD_WIDTH * CELL_SIZE, BOARD_HEIGHT * CELL_SIZE)
+    pygame.draw.rect(screen, (13, 15, 18), board_rect)
+    for y, row in enumerate(game.board):
+        for x, cell in enumerate(row):
+            if cell:
+                draw_cell(screen, x, y, COLORS[cell])
+    if game.running:
+        for row_index, row in enumerate(game.get_shape()):
+            for column_index, cell in enumerate(row):
                 if cell != ".":
-                    self.draw_cell(
-                        self.next_canvas, x, y, COLORS[self.next_type], size=24,
-                        origin=(offset_x, offset_y)
-                    )
+                    draw_cell(screen, game.current_x + column_index, game.current_y + row_index, COLORS[game.current_type])
+    pygame.draw.rect(screen, (55, 61, 68), board_rect, 2)
 
-    def handle_key(self, event):
-        key = event.keysym.lower()
-        if key in ("return", "kp_enter") and not self.running:
-            self.start()
-        elif key == "r":
-            self.start()
-        elif key == "p":
-            self.toggle_pause()
-        elif key == "left":
-            self.move(-1, 0)
-        elif key == "right":
-            self.move(1, 0)
-        elif key == "down":
-            if not self.move(0, 1) and self.running and not self.paused:
-                self.lock_piece()
-        elif key == "up":
-            self.rotate()
-        elif key == "space":
-            self.hard_drop()
+    panel_x = BOARD_X + BOARD_WIDTH * CELL_SIZE + 30
+    draw_text(screen, fonts["title"], "TETRIS", (panel_x, 30))
+    draw_text(screen, fonts["body"], game.difficulty["name"], (panel_x, 72), (255, 205, 75))
+    draw_text(screen, fonts["body"], f"Score  {game.score}", (panel_x, 120))
+    draw_text(screen, fonts["body"], f"Lines  {game.lines}", (panel_x, 150))
+    draw_text(screen, fonts["small"], "NEXT", (panel_x, 205), (155, 165, 175))
+    preview = pygame.Rect(panel_x, 230, 150, 100)
+    pygame.draw.rect(screen, (13, 15, 18), preview, border_radius=4)
+    shape = SHAPES[game.next_type][0]
+    origin_x = panel_x + (150 - len(shape[0]) * 24) // 2
+    origin_y = 230 + (100 - len(shape) * 24) // 2
+    for y, row in enumerate(shape):
+        for x, cell in enumerate(row):
+            if cell != ".":
+                draw_cell(screen, x, y, COLORS[game.next_type], 24, (origin_x, origin_y))
+    draw_text(screen, fonts["small"], "Arrows: move / rotate", (panel_x, 370), (155, 165, 175))
+    draw_text(screen, fonts["small"], "Space: hard drop", (panel_x, 395), (155, 165, 175))
+    draw_text(screen, fonts["small"], "P: pause   ESC: menu", (panel_x, 420), (155, 165, 175))
+    if game.paused:
+        draw_text(screen, fonts["title"], "PAUSED", (WINDOW_WIDTH // 2, WINDOW_HEIGHT // 2), (255, 205, 75), True)
+    elif not game.running:
+        draw_text(screen, fonts["title"], "GAME OVER", (WINDOW_WIDTH // 2, WINDOW_HEIGHT // 2), (255, 105, 105), True)
+
+
+def choose_difficulty(screen, fonts):
+    while True:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            if event.type == pygame.KEYDOWN and event.key in (pygame.K_1, pygame.K_2, pygame.K_3):
+                return chr(event.key)
+        screen.fill((22, 25, 29))
+        draw_text(screen, fonts["title"], "TETRIS", (WINDOW_WIDTH // 2, 110), center=True)
+        draw_text(screen, fonts["body"], "Choose difficulty", (WINDOW_WIDTH // 2, 170), (155, 165, 175), True)
+        draw_text(screen, fonts["body"], "1  Easy", (WINDOW_WIDTH // 2, 230), (120, 220, 145), True)
+        draw_text(screen, fonts["body"], "2  Normal", (WINDOW_WIDTH // 2, 280), (255, 205, 75), True)
+        draw_text(screen, fonts["body"], "3  Hard", (WINDOW_WIDTH // 2, 330), (255, 115, 115), True)
+        draw_text(screen, fonts["small"], "Press 1, 2, or 3", (WINDOW_WIDTH // 2, 410), (155, 165, 175), True)
+        pygame.display.flip()
+
+
+def main():
+    pygame.init()
+    screen = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
+    pygame.display.set_caption("Tetris")
+    fonts = {
+        "title": pygame.font.Font(None, 42),
+        "body": pygame.font.Font(None, 28),
+        "small": pygame.font.Font(None, 22),
+    }
+    clock = pygame.time.Clock()
+    difficulty_key = choose_difficulty(screen, fonts)
+    game = TetrisGame(difficulty_key)
+    last_drop = pygame.time.get_ticks()
+    while True:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                return
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    difficulty_key = choose_difficulty(screen, fonts)
+                    game = TetrisGame(difficulty_key)
+                    last_drop = pygame.time.get_ticks()
+                elif event.key == pygame.K_p and game.running:
+                    game.paused = not game.paused
+                elif event.key == pygame.K_r and not game.running:
+                    game = TetrisGame(difficulty_key)
+                    last_drop = pygame.time.get_ticks()
+                elif game.running and not game.paused:
+                    if event.key == pygame.K_LEFT:
+                        game.move(-1, 0)
+                    elif event.key == pygame.K_RIGHT:
+                        game.move(1, 0)
+                    elif event.key == pygame.K_DOWN:
+                        game.move(0, 1)
+                    elif event.key == pygame.K_UP:
+                        game.rotate()
+                    elif event.key == pygame.K_SPACE:
+                        game.hard_drop()
+        now = pygame.time.get_ticks()
+        if game.running and not game.paused and now - last_drop >= game.difficulty["drop_delay"]:
+            if not game.move(0, 1):
+                game.lock_piece()
+            last_drop = now
+        draw_game(screen, fonts, game)
+        pygame.display.flip()
+        clock.tick(60)
 
 
 if __name__ == "__main__":
-    window = tk.Tk()
-    game = TetrisGame(window)
-    window.mainloop()
+    main()

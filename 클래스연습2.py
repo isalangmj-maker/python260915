@@ -17,3 +17,13 @@ dev1 = Developer(1, "Alice", "Python")
 # printInfo()메소드 호출
 dev1.printInfo()
 print("aaa")
+
+
+def add(a,b):
+    return a+b
+
+result = add(5, 3)
+print(f"{5} + {3} = {result}")
+add.insts = (1,2)
+print(f"Inputs: {add.inputs}")
+print(result)
