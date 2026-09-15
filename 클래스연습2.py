@@ -16,3 +16,4 @@ dev1 = Developer(1, "Alice", "Python")
 
 # printInfo()메소드 호출
 dev1.printInfo()
+print("aaa")
