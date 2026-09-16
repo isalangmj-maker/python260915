@@ -29,3 +29,19 @@ colors.pop(0)
 print(colors)
 colors.reverse()
 print(colors)
+t = (1,2,3)
+print(t,type(t))
+l = [1,2,3]
+print(l,type(l))
+#============================
+def calc(a,b):
+    return a+b, a*b
+
+result = calc(5,6)
+print(result)
+
+print("id:{0}, name:{1}".format(1,"홍길동"))
+
+args = (4,5)
+calc(*args)
+print(calc(*args))
